@@ -66,3 +66,4 @@ typing_extensions==4.15.0
 urllib3==2.7.0
 wcwidth==0.8.1
 webencodings==0.5.1
+git+https://github.com/datosbolivia/datamesh.git#subdirectory=bindings/python

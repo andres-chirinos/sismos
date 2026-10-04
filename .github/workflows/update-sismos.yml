@@ -1,0 +1,50 @@
+name: Update Sismología Bolivia
+on:
+  schedule:
+    - cron: '30 4,16 * * *'  # Dos veces al día (04:30 y 16:30 UTC)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Actualizar datos de sismos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ejecutar extracción incremental y sincronización OKF
+        id: run_extraction
+        run: |
+          python obs_san_calixto_extract.py --mode incremental --format csv,parquet
+
+      - name: Verificar cambios
+        id: git-status
+        run: |
+          git config --global user.email "bot@datosbolivia.org"
+          git config --global user.name "datamesh-bot"
+          echo "has_changes=$(git status --porcelain | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Commit y push
+        if: steps.git-status.outputs.has_changes != '0'
+        run: |
+          git add sismology.csv sismology.parquet knowledge/datapackage.yaml knowledge/index.md datapackage.yml index.md
+          git commit -m "chore(data): sincronización incremental de eventos sísmicos y metadatos OKF"
+          git push origin main
