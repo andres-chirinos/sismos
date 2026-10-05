@@ -139,16 +139,26 @@ function getDepthLabel(depth) {
   return "Profundo (> 300 km)";
 }
 
+// Mayor profundidad = mayor transparencia (menor opacidad)
+function getDepthOpacity(depth) {
+  if (isNaN(depth)) return { fill: 0.5, stroke: 0.8 };
+  const normalized = Math.min(1, Math.max(0, depth / 650));
+  const fill = Math.max(0.15, +(0.90 - normalized * 0.75).toFixed(2));
+  const stroke = Math.max(0.35, +(1.0 - normalized * 0.65).toFixed(2));
+  return { fill, stroke };
+}
+
 // Escala exponencial que hace el tamaño notablemente mayor según la magnitud Richter
 function getMarkerRadius(mag) {
   if (isNaN(mag) || mag <= 0) return 3;
   return Math.min(45, Math.round(Math.pow(1.85, mag - 2.0) * 2.2 + 2));
 }
 
-// Renderizador Canvas para rendimiento óptimo con miles de sismos
+// Renderizador Canvas para rendimiento fluido con miles de sismos
 const canvasRenderer = L.canvas({ padding: 0.5 });
+const markersLayer = L.layerGroup().addTo(map);
 
-// Ordenar sismos menores primero y mayores arriba para máxima visibilidad
+// Parsear y ordenar sismos
 const records = res.rows
   .map(r => ({
     lat: parseFloat(r[latIdx]),
@@ -163,50 +173,145 @@ const records = res.rows
   .filter(d => !isNaN(d.lat) && !isNaN(d.lon) && !isNaN(d.mag))
   .sort((a, b) => a.mag - b.mag);
 
-for (const d of records) {
-  const radius = getMarkerRadius(d.mag);
-  const color = getDepthColor(d.depth);
-  const depthLabel = getDepthLabel(d.depth);
+let counterEl;
 
-  const marker = L.circleMarker([d.lat, d.lon], {
-    renderer: canvasRenderer,
-    radius: radius,
-    fillColor: color,
-    color: color,
-    weight: 1,
-    opacity: 0.85,
-    fillOpacity: 0.6
+function renderMarkers(minMag = 2.0, depthFilter = "all") {
+  markersLayer.clearLayers();
+
+  const filtered = records.filter(d => {
+    if (d.mag < minMag) return false;
+    if (depthFilter === "superficial" && (isNaN(d.depth) || d.depth >= 70)) return false;
+    if (depthFilter === "intermedio" && (isNaN(d.depth) || d.depth < 70 || d.depth >= 150)) return false;
+    if (depthFilter === "subduccion" && (isNaN(d.depth) || d.depth < 150 || d.depth >= 300)) return false;
+    if (depthFilter === "profundo" && (isNaN(d.depth) || d.depth < 300)) return false;
+    return true;
   });
 
-  const popupHtml = `
-    <div style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.45;min-width:200px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">
-        <span style="font-size:15px;font-weight:700;color:${color};">
-          ${d.mag.toFixed(1)} M
-        </span>
-        <span style="font-size:11px;background:#f1f5f9;color:#475569;padding:2px 6px;border-radius:4px;font-weight:600;">
-          ${depthLabel}
-        </span>
+  for (const d of filtered) {
+    const radius = getMarkerRadius(d.mag);
+    const color = getDepthColor(d.depth);
+    const opacities = getDepthOpacity(d.depth);
+    const depthLabel = getDepthLabel(d.depth);
+
+    const marker = L.circleMarker([d.lat, d.lon], {
+      renderer: canvasRenderer,
+      radius: radius,
+      fillColor: color,
+      color: color,
+      weight: 1,
+      opacity: opacities.stroke,
+      fillOpacity: opacities.fill
+    });
+
+    const popupHtml = `
+      <div style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.45;min-width:210px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">
+          <span style="font-size:15px;font-weight:700;color:${color};">
+            ${d.mag.toFixed(1)} M
+          </span>
+          <span style="font-size:11px;background:#f1f5f9;color:#475569;padding:2px 6px;border-radius:4px;font-weight:600;">
+            ${depthLabel}
+          </span>
+        </div>
+        <div style="color:#64748b;font-size:11px;margin-bottom:6px;">${d.fecha}</div>
+        <div style="margin-bottom:3px;"><strong>Región:</strong> ${d.region}</div>
+        <div style="margin-bottom:3px;"><strong>Profundidad:</strong> ${isNaN(d.depth) ? "N/D" : d.depth + " km"} (opacidad ${(opacities.fill * 100).toFixed(0)}%)</div>
+        <div style="margin-bottom:4px;"><strong>Epicentro:</strong> ${d.lat.toFixed(3)}°S, ${Math.abs(d.lon).toFixed(3)}°W</div>
+        ${d.dist ? `<div style="color:#64748b;font-size:11px;margin-bottom:4px;">${d.dist}</div>` : ''}
+        ${d.link ? `<div style="margin-top:6px;"><a href="${d.link}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Ver boletín oficial OSC &rarr;</a></div>` : ''}
       </div>
-      <div style="color:#64748b;font-size:11px;margin-bottom:6px;">${d.fecha}</div>
-      <div style="margin-bottom:3px;"><strong>Región:</strong> ${d.region}</div>
-      <div style="margin-bottom:3px;"><strong>Profundidad:</strong> ${isNaN(d.depth) ? "N/D" : d.depth + " km"}</div>
-      <div style="margin-bottom:4px;"><strong>Epicentro:</strong> ${d.lat.toFixed(3)}°S, ${Math.abs(d.lon).toFixed(3)}°W</div>
-      ${d.dist ? `<div style="color:#64748b;font-size:11px;margin-bottom:4px;">${d.dist}</div>` : ''}
-      ${d.link ? `<div style="margin-top:6px;"><a href="${d.link}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:none;font-weight:600;">Ver boletín oficial OSC &rarr;</a></div>` : ''}
+    `;
+
+    marker.bindPopup(popupHtml);
+    marker.bindTooltip(`<b>${d.mag.toFixed(1)} M</b> — ${d.region} (${isNaN(d.depth) ? 'N/D' : d.depth + ' km'})`, {
+      direction: "top",
+      opacity: 0.95
+    });
+
+    marker.addTo(markersLayer);
+  }
+
+  if (counterEl) {
+    counterEl.textContent = `${filtered.length.toLocaleString()} sismos`;
+  }
+}
+
+// Panel de Filtros interactivo en la esquina superior izquierda
+const filterControl = L.control({ position: "topleft" });
+filterControl.onAdd = function() {
+  const div = L.DomUtil.create("div", "info filter-panel");
+  L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
+
+  div.style.backgroundColor = "rgba(255, 255, 255, 0.95)";
+  div.style.padding = "10px 14px";
+  div.style.borderRadius = "8px";
+  div.style.boxShadow = "0 2px 8px rgba(0,0,0,0.18)";
+  div.style.fontSize = "12px";
+  div.style.color = "#1e293b";
+  div.style.backdropFilter = "blur(6px)";
+  div.style.minWidth = "220px";
+  div.style.maxWidth = "280px";
+
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="font-weight:700;font-size:12px;color:#0f172a;">Filtros de Sismicidad</span>
+      <span id="sismo-counter" style="font-size:11px;font-weight:700;color:#2563eb;background:#eff6ff;padding:2px 8px;border-radius:10px;">${records.length.toLocaleString()} sismos</span>
+    </div>
+    <div style="margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+        <label for="sismo-mag-range" style="font-size:11px;font-weight:600;color:#475569;">Magnitud mínima:</label>
+        <span id="sismo-mag-val" style="font-size:11px;font-weight:700;color:#0f172a;">≥ 2.0 M</span>
+      </div>
+      <input id="sismo-mag-range" type="range" min="2.0" max="6.5" step="0.1" value="2.0" style="width:100%;cursor:pointer;accent-color:#2563eb;">
+    </div>
+    <div style="margin-bottom:6px;">
+      <label for="sismo-depth-select" style="font-size:11px;font-weight:600;color:#475569;display:block;margin-bottom:3px;">Profundidad focal:</label>
+      <select id="sismo-depth-select" style="width:100%;padding:4px 6px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px;background:#fff;cursor:pointer;">
+        <option value="all">Todas las profundidades</option>
+        <option value="superficial">Superficial (&lt; 70 km)</option>
+        <option value="intermedio">Intermedio (70–150 km)</option>
+        <option value="subduccion">Subducción (150–300 km)</option>
+        <option value="profundo">Profundo (&gt; 300 km)</option>
+      </select>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+      <button id="sismo-reset-btn" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:600;color:#475569;cursor:pointer;">
+        Restablecer
+      </button>
     </div>
   `;
 
-  marker.bindPopup(popupHtml);
-  marker.bindTooltip(`<b>${d.mag.toFixed(1)} M</b> — ${d.region} (${isNaN(d.depth) ? 'N/D' : d.depth + ' km'})`, {
-    direction: "top",
-    opacity: 0.95
+  counterEl = div.querySelector("#sismo-counter");
+  const magSlider = div.querySelector("#sismo-mag-range");
+  const magVal = div.querySelector("#sismo-mag-val");
+  const depthSelect = div.querySelector("#sismo-depth-select");
+  const resetBtn = div.querySelector("#sismo-reset-btn");
+
+  const onFilterChange = () => {
+    const minMag = parseFloat(magSlider.value);
+    magVal.textContent = `≥ ${minMag.toFixed(1)} M`;
+    renderMarkers(minMag, depthSelect.value);
+  };
+
+  magSlider.addEventListener("input", onFilterChange);
+  depthSelect.addEventListener("change", onFilterChange);
+  resetBtn.addEventListener("click", () => {
+    magSlider.value = "2.0";
+    magVal.textContent = "≥ 2.0 M";
+    depthSelect.value = "all";
+    renderMarkers(2.0, "all");
   });
 
-  marker.addTo(map);
-}
+  return div;
+};
 
-// Leyenda informativa fija en el mapa
+filterControl.addTo(map);
+
+// Render inicial con todos los sismos
+renderMarkers(2.0, "all");
+
+// Leyenda informativa fija en el mapa con escala de opacidad y radio
 const legend = L.control({ position: "bottomright" });
 legend.onAdd = function() {
   const div = L.DomUtil.create("div", "info legend");
@@ -219,11 +324,12 @@ legend.onAdd = function() {
   div.style.color = "#1e293b";
   div.style.backdropFilter = "blur(4px)";
   div.innerHTML = `
-    <div style="font-weight:700;font-size:12px;margin-bottom:4px;color:#0f172a;">Profundidad Focal</div>
-    <div><i style="background:#ef4444;width:10px;height:10px;display:inline-block;border-radius:50%;margin-right:6px;"></i> Superficial (&lt; 70 km)</div>
-    <div><i style="background:#f97316;width:10px;height:10px;display:inline-block;border-radius:50%;margin-right:6px;"></i> Intermedio (70–150 km)</div>
-    <div><i style="background:#2563eb;width:10px;height:10px;display:inline-block;border-radius:50%;margin-right:6px;"></i> Subducción (150–300 km)</div>
-    <div><i style="background:#7c3aed;width:10px;height:10px;display:inline-block;border-radius:50%;margin-right:6px;"></i> Profundo (&gt; 300 km)</div>
+    <div style="font-weight:700;font-size:12px;margin-bottom:4px;color:#0f172a;">Profundidad Focal (Color y Opacidad)</div>
+    <div><i style="background:#ef4444;opacity:0.9;width:10px;height:10px;display:inline-block;border-radius:50%;margin-right:6px;"></i> Superficial (&lt; 70 km, sólida)</div>
+    <div><i style="background:#f97316;opacity:0.75;width:10px;height:10px;display:inline-block;border-radius:50%;margin-right:6px;"></i> Intermedio (70–150 km)</div>
+    <div><i style="background:#2563eb;opacity:0.55;width:10px;height:10px;display:inline-block;border-radius:50%;margin-right:6px;"></i> Subducción (150–300 km)</div>
+    <div><i style="background:#7c3aed;opacity:0.3;width:10px;height:10px;display:inline-block;border-radius:50%;margin-right:6px;border:1px solid #7c3aed;"></i> Profundo (&gt; 300 km, translúcida)</div>
+    <div style="font-size:10px;color:#64748b;margin-top:2px;">* A mayor profundidad, mayor transparencia</div>
     <hr style="margin:8px 0;border:0;border-top:1px solid #e2e8f0;">
     <div style="font-weight:700;font-size:12px;margin-bottom:4px;color:#0f172a;">Escala de Magnitud (Radio)</div>
     <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
