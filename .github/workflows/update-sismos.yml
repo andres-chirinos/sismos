@@ -45,6 +45,6 @@ jobs:
       - name: Commit y push
         if: steps.git-status.outputs.has_changes != '0'
         run: |
-          git add sismology.csv sismology.parquet knowledge/datapackage.yaml knowledge/index.md datapackage.yml index.md
+          git add data/sismology.csv data/sismology.parquet knowledge/datapackage.yaml knowledge/index.md
           git commit -m "chore(data): sincronización incremental de eventos sísmicos y metadatos OKF"
           git push origin main

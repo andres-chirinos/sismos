@@ -27,13 +27,59 @@ quality:
 
 resources:
   - name: sismology
-    title: Compilación de datos de sismología de Bolivia
+    title: Compilación de datos de sismología de Bolivia (CSV)
     type: table
-    path: ../sismology.csv
+    path: ../data/sismology.csv
     scheme: file
     format: csv
     mediatype: text/csv
     encoding: utf-8
+    schema:
+      fields:
+        - name: enlace_detalle
+          type: string
+          description: Enlace al detalle del sismo
+        - name: magnitud
+          type: number
+          description: Magnitud del sismo (escala de Richter)
+          concept: concepts/richter_magnitude_scale.md
+        - name: region_base
+          type: string
+          description: Región base del sismo
+        - name: profundidad
+          type: number
+          description: Profundidad del sismo
+        - name: distancia_epicentral
+          type: string
+          description: Distancia epicentral del sismo
+        - name: observaciones
+          type: string
+          description: Observaciones adicionales
+        - name: responsable
+          type: string
+          description: Responsable del registro
+        - name: referencias
+          type: string
+          description: Referencias del registro
+        - name: fecha_hora_registro
+          type: datetime
+          description: Fecha y hora del registro
+        - name: latitud
+          type: number
+          description: Latitud del sismo
+        - name: longitud
+          type: number
+          description: Longitud del sismo
+        - name: fuente
+          type: string
+          description: Fuente de los datos
+  - name: sismology-parquet
+    title: Compilación de datos de sismología de Bolivia (Parquet)
+    type: table
+    path: ../data/sismology.parquet
+    scheme: file
+    format: parquet
+    mediatype: application/vnd.apache.parquet
     schema:
       fields:
         - name: enlace_detalle

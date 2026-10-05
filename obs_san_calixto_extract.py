@@ -360,10 +360,9 @@ def sync_okf_metadata(df: pd.DataFrame, repo_dir: Path) -> None:
     # Completitud
     completeness = round(float(len(valid_dates)) / float(len(df)), 2)
 
-    # Actualizar datapackage.yaml / datapackage.yml
+    # Actualizar datapackage.yaml exclusivamente en knowledge/
     dp_paths = [
         repo_dir / "knowledge" / "datapackage.yaml",
-        repo_dir / "datapackage.yml"
     ]
     for dp_path in dp_paths:
         if not dp_path.exists():
@@ -383,10 +382,9 @@ def sync_okf_metadata(df: pd.DataFrame, repo_dir: Path) -> None:
         except Exception as e:
             logging.warning("No se pudo actualizar metadatos en %s: %s", dp_path, e)
 
-    # Actualizar index.md en knowledge/ y raíz
+    # Actualizar index.md exclusivamente en knowledge/
     index_paths = [
         repo_dir / "knowledge" / "index.md",
-        repo_dir / "index.md"
     ]
     for idx_path in index_paths:
         if not idx_path.exists():
@@ -438,7 +436,7 @@ def save_dataset(
 def run_pipeline(
     mode: str = "incremental",
     max_pages: int = 0,
-    output_dir: Path = REPO_ROOT,
+    output_dir: Path = REPO_ROOT / "data",
     base_name: str = "sismology",
     output_formats: list[str] | None = None,
     workers: int = 6,
@@ -449,6 +447,9 @@ def run_pipeline(
         output_formats = ["csv"]
 
     csv_path = output_dir / f"{base_name}.csv"
+    if not csv_path.exists() and (REPO_ROOT / f"{base_name}.csv").exists():
+        csv_path = REPO_ROOT / f"{base_name}.csv"
+
     existing_df = pd.DataFrame(columns=TARGET_COLUMNS)
     known_links: set[str] = set()
 
@@ -520,12 +521,12 @@ def run_pipeline(
         save_dataset(final_df, output_dir, base_name, output_formats)
 
         if update_metadata:
-            sync_okf_metadata(final_df, output_dir)
+            sync_okf_metadata(final_df, REPO_ROOT)
     elif mode == "full-refresh" and not existing_df.empty:
         final_df = existing_df
         save_dataset(final_df, output_dir, base_name, output_formats)
         if update_metadata:
-            sync_okf_metadata(final_df, output_dir)
+            sync_okf_metadata(final_df, REPO_ROOT)
     else:
         logging.info("Sin registros nuevos detectados. El catálogo ya se encuentra actualizado.")
         final_df = existing_df
@@ -546,8 +547,8 @@ def main() -> None:
     parser.add_argument(
         "--data-dir",
         type=str,
-        default=str(REPO_ROOT),
-        help="Directorio de destino para los artefactos de datos (por defecto la raíz del repositorio)."
+        default=str(REPO_ROOT / "data"),
+        help="Directorio de destino para los artefactos de datos (por defecto 'data/')."
     )
     parser.add_argument(
         "--base-name",

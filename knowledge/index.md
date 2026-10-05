@@ -31,7 +31,8 @@ Catálogo oficial de eventos sísmicos registrados en Bolivia por el **Observato
 
 ## Contenido del Conjunto de Datos
 
-- **`sismology.csv`**: Registro completo de eventos sísmicos con fecha, hora local y UTC, coordenadas geográficas del epicentro (WGS84), profundidad focal en kilómetros, magnitud estimada en escala Richter y enlaces al reporte oficial de registro.
+- **`data/sismology.csv`**: Registro completo de eventos sísmicos con fecha, hora local y UTC, coordenadas geográficas del epicentro (WGS84), profundidad focal en kilómetros, magnitud estimada en escala Richter y enlaces al reporte oficial de registro.
+- **`data/sismology.parquet`**: Versión columnar optimizada con tipado estricto para análisis analíticos de alto rendimiento.
 
 ## Análisis Espacio-Temporal Recomendado
 
