@@ -189,6 +189,8 @@ def enrich_with_details(data: list[dict[str, Any]], max_workers: int = 5) -> lis
                 'fecha', 'hora', 'fecha_y_hora', 'localización', 'enlace_detalle'
             ]
             filtered_details = {k: v for k, v in details.items() if k not in exclude_keys}
+            if any(k.lower() in ('región', 'region') for k in row.keys()):
+                filtered_details = {k: v for k, v in filtered_details.items() if k.lower() not in ('región', 'region')}
             return {**row, **filtered_details}
         return row
 
@@ -251,6 +253,19 @@ def transform_dataset(
     existing_rename = {k: v for k, v in rename_map.items() if k in df.columns}
     df = df.rename(columns=existing_rename)
 
+    if df.columns.duplicated().any():
+        seen = set()
+        new_cols = {}
+        for col in df.columns:
+            if col not in seen:
+                seen.add(col)
+                matching = df.loc[:, df.columns == col]
+                if matching.shape[1] > 1:
+                    new_cols[col] = matching.bfill(axis=1).iloc[:, 0]
+                else:
+                    new_cols[col] = matching.iloc[:, 0]
+        df = pd.DataFrame(new_cols, index=df.index)
+
     if 'fecha_hora_registro' not in df.columns:
         if 'fecha' in df.columns and 'hora' in df.columns:
             try:
@@ -281,9 +296,11 @@ def transform_dataset(
     df['fuente'] = "observatorio_san_calixto"
 
     if 'observaciones' not in df.columns:
-        df['observaciones'] = df.get('region_base', '')
+        df['observaciones'] = df['region_base'].copy() if 'region_base' in df.columns else ''
     else:
-        df['observaciones'] = df['observaciones'].fillna(df.get('region_base', ''))
+        fallback = df['region_base'] if 'region_base' in df.columns else ''
+        df['observaciones'] = df['observaciones'].fillna(fallback)
+    df['observaciones'] = df['observaciones'].fillna('')
 
     if 'profundidad_raw' in df.columns:
         mask = (
