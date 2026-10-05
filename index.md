@@ -7,13 +7,13 @@ spatial:
   regions: [BO-L, BO-P, BO-O, BO-C, BO-S, BO-H, BO-T, BO-B, BO-N]
   granularity: point
 temporal:
-  start: 2020-01-01T00:00:00Z
-  end: 2026-06-30T23:59:59Z
+  start: 2009-04-18T11:29:00Z
+  end: 2026-10-04T08:07:55Z
   frequency: irregular
   timezone: America/La_Paz
 quality:
   status: verified
-  completeness: 0.99
+  completeness: 1.0
 contracts:
   - type: datapackage
     path: ./datapackage.yml

@@ -9,14 +9,14 @@ spatial:
   granularity: point
 
 temporal:
-  start: 2020-01-01T00:00:00Z
-  end: 2026-06-30T23:59:59Z
+  start: 2009-04-18T11:29:00Z
+  end: 2026-10-04T08:07:55Z
   frequency: irregular
   timezone: America/La_Paz
 
 quality:
   status: verified
-  completeness: 0.99
+  completeness: 1.0
   checks:
     - rule: no_nulls
       field: fecha_hora_registro
