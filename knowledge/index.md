@@ -22,7 +22,7 @@ lineage:
     - name: Observatorio San Calixto
       url: http://www.sancalixto.org.bo
   version: 1.0.0
-  updated_at: '2026-10-14T20:16:16Z'
+  updated_at: '2026-10-15T19:57:17Z'
 ---
 
 # Sismología de Bolivia — Observatorio San Calixto
