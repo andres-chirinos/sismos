@@ -8,7 +8,7 @@ spatial:
   granularity: point
 temporal:
   start: 2009-04-18T11:29:00Z
-  end: 2026-11-19T03:35:25Z
+  end: 2026-11-19T22:45:28Z
   frequency: irregular
   timezone: America/La_Paz
 quality:
@@ -22,7 +22,7 @@ lineage:
     - name: Observatorio San Calixto
       url: http://www.sancalixto.org.bo
   version: 1.0.0
-  updated_at: '2026-11-19T13:38:50Z'
+  updated_at: '2026-11-20T13:19:39Z'
 ---
 
 # Sismología de Bolivia — Observatorio San Calixto
